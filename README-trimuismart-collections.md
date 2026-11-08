@@ -46,7 +46,7 @@ To revert, just copy `minui.elf.orig` back over `minui.elf`.
 
 - The entire change lives in `workspace/all/minui/minui.c` (one file, ~150 lines in the patch)
 - `minui.c` is shared across all platforms, but the new code is gated behind `strcmp(PLATFORM, "trimuismart")==0` since a few other platforms also expose a physical Y button — building for those is unaffected
-- Licensed under GPLv3, same as upstream
+- Upstream MinUI has no declared license; this fork/patch is shared in the same spirit as the existing MinUI fork ecosystem (NextUI, MyMinUI, minui-favorites, etc.)
 
 ## Tested
 

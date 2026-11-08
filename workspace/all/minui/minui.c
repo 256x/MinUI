@@ -324,6 +324,8 @@ static void Directory_index(Directory* self) {
 static Array* getRoot(void);
 static Array* getRecents(void);
 static Array* getCollection(char* path);
+static Array* getCollectionFiles(void);
+static void appendToCollection(char* collection_path, char* rom_path);
 static Array* getDiscs(char* path);
 static Array* getEntries(char* path);
 
@@ -795,6 +797,53 @@ static Array* getCollection(char* path) {
 		fclose(file);
 	}
 	return entries;
+}
+static Array* getCollectionFiles(void) {
+	Array* entries = Array_new();
+	if (!exists(COLLECTIONS_PATH)) return entries;
+
+	DIR* dh = opendir(COLLECTIONS_PATH);
+	if (dh!=NULL) {
+		struct dirent *dp;
+		char* tmp;
+		char full_path[256];
+		sprintf(full_path, "%s/", COLLECTIONS_PATH);
+		tmp = full_path + strlen(full_path);
+		while ((dp = readdir(dh)) != NULL) {
+			if (hide(dp->d_name)) continue;
+			if (!suffixMatch(".txt", dp->d_name)) continue;
+			strcpy(tmp, dp->d_name);
+			Array_push(entries, Entry_new(full_path, ENTRY_DIR));
+		}
+		closedir(dh);
+	}
+	EntryArray_sort(entries);
+	return entries;
+}
+static void appendToCollection(char* collection_path, char* rom_path) {
+	rom_path += strlen(SDCARD_PATH); // makes path platform agnostic (same idiom as addRecent())
+
+	// dedup: skip if already present
+	FILE* file = fopen(collection_path, "r");
+	if (file) {
+		char line[256];
+		while (fgets(line,256,file)!=NULL) {
+			normalizeNewline(line);
+			trimTrailingNewlines(line);
+			if (exactMatch(line, rom_path)) {
+				fclose(file);
+				return;
+			}
+		}
+		fclose(file);
+	}
+
+	file = fopen(collection_path, "a");
+	if (file) {
+		fputs(rom_path, file);
+		putc('\n', file);
+		fclose(file);
+	}
 }
 static Array* getDiscs(char* path){
 	
@@ -1331,6 +1380,11 @@ int main (int argc, char *argv[]) {
 	PAD_reset();
 	int dirty = 1;
 	int show_version = 0;
+	int show_collections = 0;
+	Array* collection_files = NULL;
+	int collections_selected = 0;
+	int collections_start = 0;
+	char collection_target_path[MAX_PATH];
 	int show_setting = 0; // 1=brightness,2=volume
 	int was_online = PLAT_isOnline();
 	
@@ -1356,6 +1410,34 @@ int main (int argc, char *argv[]) {
 				dirty = 1;
 				if (!HAS_POWER_BUTTON && !simple_mode) PWR_disableSleep();
 			}
+		}
+		else if (show_collections) {
+			int collections_total = collection_files->count;
+			if (PAD_justPressed(BTN_B)) {
+				show_collections = 0;
+				EntryArray_free(collection_files);
+				collection_files = NULL;
+				dirty = 1;
+			}
+			else if (PAD_justRepeated(BTN_UP) && collections_selected>0) {
+				collections_selected -= 1;
+				dirty = 1;
+			}
+			else if (PAD_justRepeated(BTN_DOWN) && collections_selected<collections_total-1) {
+				collections_selected += 1;
+				dirty = 1;
+			}
+			else if (PAD_justPressed(BTN_A)) {
+				Entry* target = collection_files->items[collections_selected];
+				appendToCollection(target->path, collection_target_path);
+				show_collections = 0;
+				EntryArray_free(collection_files);
+				collection_files = NULL;
+				dirty = 1;
+			}
+
+			if (collections_selected<collections_start) collections_start = collections_selected;
+			else if (collections_selected>=collections_start+MAIN_ROW_COUNT) collections_start = collections_selected-MAIN_ROW_COUNT+1;
 		}
 		else {
 			if (PAD_tappedMenu(now)) {
@@ -1481,8 +1563,26 @@ int main (int argc, char *argv[]) {
 				// can_resume = 0;
 				if (total>0) readyResume(top->entries->items[top->selected]);
 			}
+			else if (total>0 && strcmp(PLATFORM, "trimuismart")==0 && PAD_justPressed(BTN_Y)) {
+				Entry* entry = top->entries->items[top->selected];
+				if (entry->type!=ENTRY_DIR) {
+					collection_files = getCollectionFiles();
+					if (collection_files->count>0) {
+						strncpy(collection_target_path, entry->path, MAX_PATH-1);
+						collection_target_path[MAX_PATH-1] = '\0';
+						collections_selected = 0;
+						collections_start = 0;
+						show_collections = 1;
+						dirty = 1;
+					}
+					else {
+						EntryArray_free(collection_files);
+						collection_files = NULL;
+					}
+				}
+			}
 		}
-		
+
 		if (dirty) {
 			GFX_clear(screen);
 			
@@ -1492,7 +1592,7 @@ int main (int argc, char *argv[]) {
 			// simple thumbnail support a thumbnail for a file or folder named NAME.EXT needs a corresponding /.res/NAME.EXT.png 
 			// that is no bigger than platform FIXED_HEIGHT x FIXED_HEIGHT
 			int had_thumb = 0;
-			if (!show_version && total>0) {
+			if (!show_version && !show_collections && total>0) {
 				Entry* entry = top->entries->items[top->selected];
 				char res_path[MAX_PATH];
 				
@@ -1583,6 +1683,49 @@ int main (int argc, char *argv[]) {
 				else GFX_blitButtonGroup((char*[]){ BTN_SLEEP==BTN_POWER?"POWER":"MENU","SLEEP",  NULL }, 0, screen, 0);
 				
 				GFX_blitButtonGroup((char*[]){ "B","BACK",  NULL }, 0, screen, 1);
+			}
+			else if (show_collections) {
+				int collections_total = collection_files->count;
+				if (collections_total>0) {
+					int selected_row = collections_selected - collections_start;
+					int collections_end = collections_start + MAIN_ROW_COUNT;
+					if (collections_end>collections_total) collections_end = collections_total;
+					for (int i=collections_start,j=0; i<collections_end; i++,j++) {
+						Entry* entry = collection_files->items[i];
+						char* entry_name = entry->name;
+						int available_width = screen->w - SCALE1(PADDING * 2);
+						if (i==collections_start) available_width -= ow;
+
+						SDL_Color text_color = COLOR_WHITE;
+						trimSortingMeta(&entry_name);
+
+						char display_name[256];
+						int text_width = GFX_truncateText(font.large, entry_name, display_name, available_width, SCALE1(BUTTON_PADDING*2));
+						int max_width = MIN(available_width, text_width);
+						if (j==selected_row) {
+							GFX_blitPill(ASSET_WHITE_PILL, screen, &(SDL_Rect){
+								SCALE1(PADDING),
+								SCALE1(PADDING+(j*PILL_SIZE)),
+								max_width,
+								SCALE1(PILL_SIZE)
+							});
+							text_color = COLOR_BLACK;
+						}
+						SDL_Surface* text = TTF_RenderUTF8_Blended(font.large, display_name, text_color);
+						SDL_BlitSurface(text, &(SDL_Rect){
+							0,
+							0,
+							max_width-SCALE1(BUTTON_PADDING*2),
+							text->h
+						}, screen, &(SDL_Rect){
+							SCALE1(PADDING+BUTTON_PADDING),
+							SCALE1(PADDING+(j*PILL_SIZE)+4)
+						});
+						SDL_FreeSurface(text);
+					}
+				}
+
+				GFX_blitButtonGroup((char*[]){ "B","BACK", "A","ADD", NULL}, 1, screen, 1);
 			}
 			else {
 				// list
@@ -1696,6 +1839,7 @@ int main (int argc, char *argv[]) {
 	}
 	
 	if (version) SDL_FreeSurface(version);
+	if (collection_files) EntryArray_free(collection_files);
 
 	Menu_quit();
 	PWR_quit();

@@ -326,6 +326,7 @@ static Array* getRecents(void);
 static Array* getCollection(char* path);
 static Array* getCollectionFiles(void);
 static void appendToCollection(char* collection_path, char* rom_path);
+static void removeFromCollection(char* collection_path, char* rom_path);
 static Array* getDiscs(char* path);
 static Array* getEntries(char* path);
 
@@ -844,6 +845,33 @@ static void appendToCollection(char* collection_path, char* rom_path) {
 		putc('\n', file);
 		fclose(file);
 	}
+}
+static void removeFromCollection(char* collection_path, char* rom_path) {
+	rom_path += strlen(SDCARD_PATH); // same idiom as appendToCollection()
+
+	Array* keep = Array_new(); // strdup'd lines to keep
+	FILE* file = fopen(collection_path, "r");
+	if (file) {
+		char line[256];
+		while (fgets(line,256,file)!=NULL) {
+			normalizeNewline(line);
+			trimTrailingNewlines(line);
+			if (strlen(line)==0) continue; // skip empty lines
+			if (exactMatch(line, rom_path)) continue; // drop the removed entry
+			Array_push(keep, strdup(line));
+		}
+		fclose(file);
+	}
+
+	file = fopen(collection_path, "w");
+	if (file) {
+		for (int i=0; i<keep->count; i++) {
+			fputs(keep->items[i], file);
+			putc('\n', file);
+		}
+		fclose(file);
+	}
+	StringArray_free(keep);
 }
 static Array* getDiscs(char* path){
 	
@@ -1385,6 +1413,9 @@ int main (int argc, char *argv[]) {
 	int collections_selected = 0;
 	int collections_start = 0;
 	char collection_target_path[MAX_PATH];
+	int show_delete_confirm = 0;
+	char delete_rom_path[MAX_PATH];
+	char delete_rom_name[256];
 	int show_setting = 0; // 1=brightness,2=volume
 	int was_online = PLAT_isOnline();
 	
@@ -1438,6 +1469,27 @@ int main (int argc, char *argv[]) {
 
 			if (collections_selected<collections_start) collections_start = collections_selected;
 			else if (collections_selected>=collections_start+MAIN_ROW_COUNT) collections_start = collections_selected-MAIN_ROW_COUNT+1;
+		}
+		else if (show_delete_confirm) {
+			if (PAD_justPressed(BTN_B)) {
+				show_delete_confirm = 0;
+				dirty = 1;
+			}
+			else if (PAD_justPressed(BTN_A)) {
+				removeFromCollection(top->path, delete_rom_path);
+
+				Array* old_entries = top->entries;
+				top->entries = getCollection(top->path);
+				EntryArray_free(old_entries);
+
+				total = top->entries->count;
+				if (top->selected>=total) top->selected = total>0 ? total-1 : 0;
+				top->start = 0;
+				top->end = (total<MAIN_ROW_COUNT) ? total : MAIN_ROW_COUNT;
+
+				show_delete_confirm = 0;
+				dirty = 1;
+			}
 		}
 		else {
 			if (PAD_tappedMenu(now)) {
@@ -1581,6 +1633,16 @@ int main (int argc, char *argv[]) {
 					}
 				}
 			}
+			else if (total>0 && strcmp(PLATFORM, "trimuismart")==0 && PAD_justPressed(BTN_X) &&
+			         !exactMatch(top->path, COLLECTIONS_PATH) && prefixMatch(COLLECTIONS_PATH, top->path) && suffixMatch(".txt", top->path)) {
+				Entry* entry = top->entries->items[top->selected];
+				strncpy(delete_rom_path, entry->path, MAX_PATH-1);
+				delete_rom_path[MAX_PATH-1] = '\0';
+				strncpy(delete_rom_name, entry->name, 255);
+				delete_rom_name[255] = '\0';
+				show_delete_confirm = 1;
+				dirty = 1;
+			}
 		}
 
 		if (dirty) {
@@ -1592,7 +1654,7 @@ int main (int argc, char *argv[]) {
 			// simple thumbnail support a thumbnail for a file or folder named NAME.EXT needs a corresponding /.res/NAME.EXT.png 
 			// that is no bigger than platform FIXED_HEIGHT x FIXED_HEIGHT
 			int had_thumb = 0;
-			if (!show_version && !show_collections && total>0) {
+			if (!show_version && !show_collections && !show_delete_confirm && total>0) {
 				Entry* entry = top->entries->items[top->selected];
 				char res_path[MAX_PATH];
 				
@@ -1726,6 +1788,17 @@ int main (int argc, char *argv[]) {
 				}
 
 				GFX_blitButtonGroup((char*[]){ "B","BACK", "A","ADD", NULL}, 1, screen, 1);
+			}
+			else if (show_delete_confirm) {
+				int name_width = screen->w - SCALE1(PADDING * 4);
+				char name_line[256];
+				GFX_truncateText(font.large, delete_rom_name, name_line, name_width, 0);
+
+				char msg[400];
+				snprintf(msg, sizeof(msg), "%s\nRemove from collection?", name_line);
+				GFX_blitMessage(font.large, msg, screen, &(SDL_Rect){0,0,screen->w,screen->h});
+
+				GFX_blitButtonGroup((char*[]){ "B","CANCEL", "A","REMOVE", NULL}, 1, screen, 1);
 			}
 			else {
 				// list

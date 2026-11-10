@@ -1,16 +1,21 @@
-# Add to Collection (Y button) — Trimui Smart
+# Collection management (Y/X buttons) — Trimui Smart
 
-A small patch for [MinUI](https://github.com/shauninman/MinUI) (archived 2025-11-27) that adds a way to add a rom to a Collection directly from the rom list, without pulling the SD card. **`trimuismart` (original Trimui Smart) only.**
+A small patch for [MinUI](https://github.com/shauninman/MinUI) (archived 2025-11-27) that adds a way to add/remove roms from a Collection directly from the rom list, without pulling the SD card. **`trimuismart` (original Trimui Smart) only.**
 
 ## What it does
 
-While browsing the rom list, press **Y** on a highlighted rom to open a popup listing the existing `Collections/*.txt` files.
+**Add to a collection** — while browsing the rom list, press **Y** on a highlighted rom to open a popup listing the existing `Collections/*.txt` files.
 
 - Up/Down: move selection
 - A: append the rom to the selected collection (skips if already present)
 - B: cancel, no changes
 
-Naming a brand new collection is **not** done on-device — MinUI has no on-screen keyboard, so this patch doesn't add one either. Instead, just create empty `.txt` files under `Collections/` with whatever names you like ahead of time (any name works, e.g. `Collections/fav.txt`); they show up in the Y-button popup like any other collection, even while empty.
+**Remove from a collection** — while browsing *inside* a collection, press **X** on a highlighted rom to open a confirm popup (rom name on top, "Remove from collection?" below).
+
+- A: remove it
+- B: cancel, no changes
+
+Naming a brand new collection is **not** done on-device — MinUI has no on-screen keyboard, so this patch doesn't add one either. Instead, just create empty `.txt` files under `Collections/` with whatever names you like ahead of time (any name works, e.g. `Collections/fav.txt`); they show up in the Y-button popup like any other collection, even while empty. Deleting a whole collection (not just an item in it) is also left to doing it on the SD card directly — not worth the on-device UI for something you do rarely.
 
 ## Quick install (prebuilt binary, no building required)
 
@@ -26,10 +31,10 @@ To revert, just copy `minui.elf.orig` back over `minui.elf`.
 ## Building from source
 
 1. Clone [shauninman/MinUI](https://github.com/shauninman/MinUI)
-2. Apply `add-to-collection-y-button.patch` from the Releases page:
+2. Apply `trimuismart-collections.patch` from the Releases page:
    ```
    cd MinUI
-   git apply /path/to/add-to-collection-y-button.patch
+   git apply /path/to/trimuismart-collections.patch
    ```
 3. With Docker running:
    ```
@@ -44,8 +49,8 @@ To revert, just copy `minui.elf.orig` back over `minui.elf`.
 
 ## Scope / notes
 
-- The entire change lives in `workspace/all/minui/minui.c` (one file, ~150 lines in the patch)
-- `minui.c` is shared across all platforms, but the new code is gated behind `strcmp(PLATFORM, "trimuismart")==0` since a few other platforms also expose a physical Y button — building for those is unaffected
+- The entire change lives in `workspace/all/minui/minui.c` (one file, ~280 lines in the patch)
+- `minui.c` is shared across all platforms, but the new code is gated behind `strcmp(PLATFORM, "trimuismart")==0` since a few other platforms also expose physical Y/X buttons — building for those is unaffected
 - Upstream MinUI has no declared license; this fork/patch is shared in the same spirit as the existing MinUI fork ecosystem (NextUI, MyMinUI, minui-favorites, etc.)
 
 ## Tested

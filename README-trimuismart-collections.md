@@ -1,6 +1,10 @@
-# Collection management (Y/X buttons) — Trimui Smart
+# Collection management (Y/X) + longer/optional auto-sleep — Trimui Smart
 
-A small patch for [MinUI](https://github.com/shauninman/MinUI) (archived 2025-11-27) that adds a way to add/remove roms from a Collection directly from the rom list, without pulling the SD card. **`trimuismart` (original Trimui Smart) only.**
+A small patch for [MinUI](https://github.com/shauninman/MinUI) (archived 2025-11-27), plus one optional drop-in Tools pak. **`trimuismart` (original Trimui Smart) only.**
+
+- Add/remove roms from a Collection directly from the rom list (Y/X), without pulling the SD card
+- Auto-sleep extended from 30 seconds to 5 minutes, with an on-device toggle to disable it entirely — useful since the original Trimui Smart can't wake from sleep, so the short default timeout meant losing your session (full power cycle) just from pausing to think
+- *(bonus, not part of the patch)* a "Random" Tools pak that launches a random rom from across every installed system
 
 ## What it does
 
@@ -17,16 +21,21 @@ A small patch for [MinUI](https://github.com/shauninman/MinUI) (archived 2025-11
 
 Naming a brand new collection is **not** done on-device — MinUI has no on-screen keyboard, so this patch doesn't add one either. Instead, just create empty `.txt` files under `Collections/` with whatever names you like ahead of time (any name works, e.g. `Collections/fav.txt`); they show up in the Y-button popup like any other collection, even while empty. Deleting a whole collection (not just an item in it) is also left to doing it on the SD card directly — not worth the on-device UI for something you do rarely.
 
-## Quick install (prebuilt binary, no building required)
+**Auto-sleep: longer, and optional** — auto-sleep now kicks in after 5 minutes of no input instead of 30 seconds. To turn it off entirely (manual sleep via the sleep button still works), drop the included `Sleep 5min.pak` folder into `Tools/trimuismart/` and select it from the Tools menu; it flips a flag and renames itself to `Sleep Off.pak` so the menu entry itself always shows which state you're in. Select it again to go back to the 5-minute default.
 
-Grab `minui.elf` from the [Releases](../../releases) page.
+**Bonus: Random.pak** — not a source patch at all, just a drop-in `Tools/trimuismart/Random.pak/launch.sh` shell script. Picks and launches a random rom from across every system folder under `Roms/`. Caches the candidate list next to itself the first time it runs (`cache.txt`, in the same pak folder); delete that file if you add/remove roms later and want it to pick up the new set.
 
-1. On your SD card, back up the existing binary: rename `.system/trimuismart/bin/minui.elf` to e.g. `minui.elf.orig`
-2. Copy the downloaded `minui.elf` into `.system/trimuismart/bin/`
+## Quick install (prebuilt binaries, no building required)
+
+Grab `minui.elf` and `minarch.elf` from the [Releases](../../releases) page (both link the sleep-delay code independently, so both need replacing for the 5-minute default to apply everywhere — menu *and* in-game).
+
+1. On your SD card, back up the existing binaries: rename `.system/trimuismart/bin/minui.elf` and `minarch.elf` to e.g. `minui.elf.orig` / `minarch.elf.orig`
+2. Copy the downloaded `minui.elf` and `minarch.elf` into `.system/trimuismart/bin/`
 3. Create whatever empty `.txt` files you want under `Collections/` (skip this if you already have collections — those show up too)
-4. Put the card back in your Trimui Smart and boot
+4. *(optional)* drop `Sleep 5min.pak` into `Tools/trimuismart/` for the sleep on/off toggle, and/or `Random.pak` for the random-rom launcher — both from the Release assets
+5. Put the card back in your Trimui Smart and boot
 
-To revert, just copy `minui.elf.orig` back over `minui.elf`.
+To revert, just copy the `.orig` binaries back over.
 
 ## Building from source
 
@@ -49,8 +58,9 @@ To revert, just copy `minui.elf.orig` back over `minui.elf`.
 
 ## Scope / notes
 
-- The entire change lives in `workspace/all/minui/minui.c` (one file, ~280 lines in the patch)
-- `minui.c` is shared across all platforms, but the new code is gated behind `strcmp(PLATFORM, "trimuismart")==0` since a few other platforms also expose physical Y/X buttons — building for those is unaffected
+- Y/X collection management lives entirely in `workspace/all/minui/minui.c`, gated behind `strcmp(PLATFORM, "trimuismart")==0` since a few other platforms also expose physical Y/X buttons — building for those is unaffected
+- The sleep change touches `workspace/all/common/defines.h`, `api.c`, `minui.c`, and `minarch.c` — a new `NO_AUTOSLEEP_PATH` flag file is checked once at startup in both `minui.c` and `minarch.c` (each links `api.c` independently, hence the two call sites) and calls the existing-but-previously-unused `PWR_disableAutosleep()` API; `SLEEP_DELAY` in `api.c` moved from 30000 to 300000ms. Neither change is platform-gated since the sleep API is generic, but the on-device toggle pak (`Sleep 5min.pak`) is `trimuismart`-only by virtue of only being distributed for that platform's `Tools/` folder
+- `Random.pak` has no C code at all — see "Bonus" above
 - Upstream MinUI has no declared license; this fork/patch is shared in the same spirit as the existing MinUI fork ecosystem (NextUI, MyMinUI, minui-favorites, etc.)
 
 ## Tested

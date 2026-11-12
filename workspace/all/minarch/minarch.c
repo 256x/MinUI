@@ -4692,6 +4692,7 @@ int main(int argc , char* argv[]) {
 	
 	VIB_init();
 	PWR_init();
+	if (exists(NO_AUTOSLEEP_PATH)) PWR_disableAutosleep();
 	if (!HAS_POWER_BUTTON) PWR_disableSleep();
 	MSG_init();
 	

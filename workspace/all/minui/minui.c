@@ -1393,6 +1393,7 @@ int main (int argc, char *argv[]) {
 	// LOG_info("- input init: %lu\n", SDL_GetTicks() - main_begin);
 	
 	PWR_init();
+	if (exists(NO_AUTOSLEEP_PATH)) PWR_disableAutosleep();
 	if (!HAS_POWER_BUTTON && !simple_mode) PWR_disableSleep();
 	// LOG_info("- power init: %lu\n", SDL_GetTicks() - main_begin);
 	

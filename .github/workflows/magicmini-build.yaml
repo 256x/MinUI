@@ -1,0 +1,26 @@
+name: Build magicmini (native ARM64)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: make build PLATFORM=magicmini || true
+
+      - name: Collect binaries
+        run: |
+          mkdir -p out
+          find workspace -path '*/build/magicmini/*' -type f -exec cp {} out/ \;
+          cp workspace/magicmini/keymon/keymon.elf out/ 2>/dev/null || true
+          cp workspace/magicmini/libmsettings/libmsettings.so out/ 2>/dev/null || true
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: magicmini-build
+          path: out/

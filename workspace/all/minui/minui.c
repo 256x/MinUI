@@ -1616,7 +1616,7 @@ int main (int argc, char *argv[]) {
 				// can_resume = 0;
 				if (total>0) readyResume(top->entries->items[top->selected]);
 			}
-			else if (total>0 && strcmp(PLATFORM, "trimuismart")==0 && PAD_justPressed(BTN_Y)) {
+			else if (total>0 && (strcmp(PLATFORM, "trimuismart")==0||strcmp(PLATFORM, "magicmini")==0) && PAD_justPressed(BTN_Y)) {
 				Entry* entry = top->entries->items[top->selected];
 				if (entry->type!=ENTRY_DIR) {
 					collection_files = getCollectionFiles();
@@ -1634,7 +1634,7 @@ int main (int argc, char *argv[]) {
 					}
 				}
 			}
-			else if (total>0 && strcmp(PLATFORM, "trimuismart")==0 && PAD_justPressed(BTN_X) &&
+			else if (total>0 && (strcmp(PLATFORM, "trimuismart")==0||strcmp(PLATFORM, "magicmini")==0) && PAD_justPressed(BTN_X) &&
 			         !exactMatch(top->path, COLLECTIONS_PATH) && prefixMatch(COLLECTIONS_PATH, top->path) && suffixMatch(".txt", top->path)) {
 				Entry* entry = top->entries->items[top->selected];
 				strncpy(delete_rom_path, entry->path, MAX_PATH-1);

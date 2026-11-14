@@ -4,10 +4,20 @@
 ROMS_PATH="$SDCARD_PATH/Roms"
 PAKS_PATH="$SYSTEM_PATH/paks"
 CACHE_LIST="$(dirname "$0")/cache.txt"
+SIG_FILE="$(dirname "$0")/.sig"
 TMP_LIST="/tmp/random_pak_candidates.txt"
 
-# ROM追加・削除はほぼ無い前提でキャッシュ。ROM構成を変えたら
-# cache.txt をこのpakフォルダから削除すれば次回起動時に再構築される。
+# cache.txt is rebuilt whenever a system folder's own mtime changes
+# (adding/removing a file touches its parent dir), so this stays cheap --
+# it only stats each system folder, not every rom file.
+SIG=$(find "$ROMS_PATH" -mindepth 1 -maxdepth 1 -type d -exec stat -c '%Y %n' {} \; 2>/dev/null | sort | md5sum 2>/dev/null)
+OLD_SIG=""
+[ -f "$SIG_FILE" ] && OLD_SIG=$(cat "$SIG_FILE" 2>/dev/null)
+if [ "$SIG" != "$OLD_SIG" ]; then
+	rm -f "$CACHE_LIST"
+	echo "$SIG" > "$SIG_FILE"
+fi
+
 if [ ! -f "$CACHE_LIST" ]; then
 	find "$ROMS_PATH" -mindepth 2 -maxdepth 2 -type f \
 		! -iname "gamelist.xml" \

@@ -782,7 +782,25 @@ void GFX_blitHardwareHints(SDL_Surface* dst, int show_setting) {
 	
 }
 
+void GFX_blitStatusBar(SDL_Surface* dst) {
+	int h = SCALE1(PILL_SIZE);
+	int y = dst->h - h;
+
+	SDL_FillRect(dst, &(SDL_Rect){0,y,dst->w,h}, SDL_MapRGB(dst->format, TRIAD_WHITE));
+
+	SDL_Surface* left = TTF_RenderUTF8_Blended(font.small, "MinUI (custom ver)", COLOR_BLACK);
+	SDL_BlitSurface(left, NULL, dst, &(SDL_Rect){SCALE1(PADDING), y+(h-left->h)/2});
+	SDL_FreeSurface(left);
+
+	char battery_label[32];
+	if (pwr.is_charging) sprintf(battery_label, "Battery: charging");
+	else sprintf(battery_label, "Battery: %d%%", pwr.charge);
+	SDL_Surface* right = TTF_RenderUTF8_Blended(font.small, battery_label, COLOR_BLACK);
+	SDL_BlitSurface(right, NULL, dst, &(SDL_Rect){dst->w-SCALE1(PADDING)-right->w, y+(h-right->h)/2});
+	SDL_FreeSurface(right);
+}
 int GFX_blitButtonGroup(char** pairs, int primary, SDL_Surface* dst, int align_right) {
+	return 0; // button hint bar disabled
 	int ox;
 	int oy;
 	int ow;

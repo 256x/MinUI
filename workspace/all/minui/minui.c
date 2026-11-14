@@ -1885,6 +1885,8 @@ int main (int argc, char *argv[]) {
 						GFX_blitButtonGroup((char*[]){ "A","OPEN", NULL }, 0, screen, 1);
 					}
 				}
+
+				GFX_blitStatusBar(screen);
 			}
 
 			GFX_flip(screen);

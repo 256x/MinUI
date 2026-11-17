@@ -29,8 +29,23 @@ int exactMatch(char* str1, char* str2) {
 int containsString(char* haystack, char* needle) {
 	return strcasestr(haystack, needle) != NULL;
 }
+int hideStateSuffix(char* file_name) {
+	char* state = strstr(file_name, ".state");
+	if (!state) return 0;
+	char* rest = state + 6; // strlen(".state")
+	while (*rest) {
+		if (*rest<'0' || *rest>'9') return 0;
+		rest += 1;
+	}
+	return 1;
+}
 int hide(char* file_name) {
-	return file_name[0]=='.' || suffixMatch(".disabled", file_name) || exactMatch("map.txt", file_name);
+	return file_name[0]=='.' || suffixMatch(".disabled", file_name) || exactMatch("map.txt", file_name) ||
+		suffixMatch(".srm", file_name) || suffixMatch(".sav", file_name) ||
+		suffixMatch(".sv0", file_name) || suffixMatch(".sv1", file_name) ||
+		suffixMatch(".spc", file_name) || suffixMatch(".db", file_name) ||
+		suffixMatch(".txt", file_name) ||
+		hideStateSuffix(file_name);
 }
 
 void getDisplayName(const char* in_name, char* out_name) {

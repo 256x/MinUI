@@ -672,6 +672,7 @@ enum {
 	SHORTCUT_CYCLE_EFFECT,
 	SHORTCUT_TOGGLE_FF,
 	SHORTCUT_HOLD_FF,
+	SHORTCUT_SLEEP_NOW,
 	SHORTCUT_COUNT,
 };
 
@@ -937,6 +938,7 @@ static struct Config {
 		[SHORTCUT_CYCLE_EFFECT]			= {"Cycle Effect",		-1, BTN_ID_NONE, 0},
 		[SHORTCUT_TOGGLE_FF]			= {"Toggle FF",			-1, BTN_ID_NONE, 0},
 		[SHORTCUT_HOLD_FF]				= {"Hold FF",			-1, BTN_ID_NONE, 0},
+		[SHORTCUT_SLEEP_NOW]			= {"Sleep Now",			-1, BTN_ID_NONE, 0},
 		{NULL}
 	},
 };
@@ -1713,6 +1715,11 @@ static void input_poll_callback(void) {
 					case SHORTCUT_SAVE_QUIT:
 						Menu_saveState();
 						quit = 1;
+						break;
+					case SHORTCUT_SLEEP_NOW:
+						Menu_beforeSleep();
+						PWR_powerOff();
+						Menu_afterSleep();
 						break;
 					case SHORTCUT_CYCLE_SCALE:
 						screen_scaling += 1;

@@ -128,7 +128,7 @@ extern int on_hdmi;
 
 ///////////////////////////////
 
-#define MAIN_ROW_COUNT (is_cubexx||on_hdmi?8:6)
+#define MAIN_ROW_COUNT (is_cubexx||on_hdmi?8:10)
 #define PADDING (is_cubexx||on_hdmi?40:10)
 
 ///////////////////////////////
